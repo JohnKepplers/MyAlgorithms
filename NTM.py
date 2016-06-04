@@ -20,7 +20,7 @@ def update_controller(self, inp, h_tm1, M):
     _, h = self.lstm.step(x, h_tm1)
 
     return h
-'''
+
 
 def circulant(leng, n_shifts):
     # wicked tensor
@@ -29,7 +29,7 @@ def circulant(leng, n_shifts):
     C = np.asarray([np.roll(eye, s, axis=1) for s in shifts])
     return theano.shared(C.astype(theano.config.floatX))
 
-'''
+
 def re_norm(x):
     return x / (x.sum(axis=1, keepdims=True))
 
@@ -105,7 +105,7 @@ class NeuralTuringMachine(Recurrent):
         self.W_s_write = self.lstm.init((self.output_dim, self.shift_range))
         self.b_s_write = backend.zeros((self.shift_range))
 
-      #  self.C = circulant(self.n_slots, self.shift_range)
+        self.C = circulant(self.n_slots, self.shift_range)
 
         self.trainable_weights = self.lstm.trainable_weights + [
             self.W_e, self.b_e,
@@ -156,7 +156,7 @@ class NeuralTuringMachine(Recurrent):
             return input_shape[0], input_shape[1], self.output_dim
         else:
             return input_shape[0], self.output_dim
-'''
+
     def step(self, x, states):
         M_tm1, wr_tm1, ww_tm1 = states[:3]
         # reshape
@@ -187,4 +187,4 @@ class NeuralTuringMachine(Recurrent):
 
         M_t = M_t.flatten(ndim=2)
 
-        return h_t[0], [M_t, wr_t, ww_t] + h_t  '''
+        return h_t[0], [M_t, wr_t, ww_t] + h_t  
