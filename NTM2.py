@@ -155,12 +155,12 @@ class NeuralTuringMachine(Recurrent):
         else:
             return input_shape[0], self.output_dim
 
-    def call(self, x, states = None):
-        M_tm1, wr_tm1, ww_tm1 = states[:3]
+    def call(self, x, mask = None):
+        M_tm1, wr_tm1, ww_tm1 = mask[:3]
         # reshape
         M_tm1 = M_tm1.reshape((x.shape[0], self.n_slots, self.m_length))
         # read
-        h_tm1 = states[3:]
+        h_tm1 = mask[3:]
         k_read, beta_read, g_read, gamma_read, s_read = self.get_controller_output(
             h_tm1[0], self.W_k_read, self.b_k_read, self.W_c_read, self.b_c_read,
             self.W_s_read, self.b_s_read)
