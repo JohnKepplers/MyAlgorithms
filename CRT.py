@@ -6,7 +6,7 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation
 from keras.layers.recurrent import LSTM
 from keras.layers.core import RepeatVector
-import NTM
+import NTM2
 import numpy as np
 
 
