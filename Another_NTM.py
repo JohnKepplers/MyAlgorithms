@@ -2,6 +2,7 @@ import numpy as np
 
 import theano
 import theano.tensor as T
+
 floatX = theano.config.floatX
 
 from keras.layers.recurrent import Recurrent, LSTM
@@ -18,10 +19,10 @@ def _wta(X):
 
 def _update_controller(self, inp, h_tm1, M):
     x = T.concatenate([inp, M], axis=-1)
-    if len(h_tm1) in [1,2]:
-        if hasattr(self.rnn,"get_constants"):
-            BW,BU = self.rnn.get_constants(x)
-            h_tm1 += (BW,BU)
+    if len(h_tm1) in [1, 2]:
+        if hasattr(self.rnn, "get_constants"):
+            BW, BU = self.rnn.get_constants(x)
+            h_tm1 += (BW, BU)
     _, h = self.rnn.step(x, h_tm1)
 
     return h
@@ -29,7 +30,7 @@ def _update_controller(self, inp, h_tm1, M):
 
 def _circulant(leng, n_shifts):
     eye = np.eye(leng)
-    shifts = range(n_shifts//2, -n_shifts//2, -1)
+    shifts = range(n_shifts // 2, -n_shifts // 2, -1)
     C = np.asarray([np.roll(eye, s, axis=1) for s in shifts])
     return theano.shared(C.astype(theano.config.floatX))
 
@@ -46,43 +47,41 @@ def _softmax(x):
 
 def _cosine_distance(M, k):
     dot = (M * k[:, None, :]).sum(axis=-1)
-    nM = T.sqrt((M**2).sum(axis=-1))
-    nk = T.sqrt((k**2).sum(axis=-1, keepdims=True))
+    nM = T.sqrt((M ** 2).sum(axis=-1))
+    nk = T.sqrt((k ** 2).sum(axis=-1, keepdims=True))
     return dot / (nM * nk)
 
 
 class NeuralTuringMachine(Recurrent):
     def __init__(self, output_dim, memory_size, shift_range=3,
                  init='glorot_uniform', inner_init='orthogonal',
-                 input_dim=None, input_length= None, **kwargs):
+                 input_dim=None, input_length=None, **kwargs):
         self.output_dim = output_dim
         self.n_slots = memory_size[1]
         self.m_length = memory_size[0]
         self.shift_range = shift_range
         self.init = init
         self.inner_init = inner_init
-
         self.input_dim = input_dim
         self.input_length = input_length
+        self.u = None
         if self.input_dim:
             kwargs['input_shape'] = (self.input_length, self.input_dim)
         super(NeuralTuringMachine, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        print(input_shape[1])
+        self.u = input_shape
         input_leng, input_dim = input_shape[1:]
-        #self.input = T.tensor3()
+        # self.input = T.tensor3()
 
         self.rnn = LSTM(
-            input_dim=input_dim+self.m_length,
+            input_dim=input_dim + self.m_length,
             input_length=input_leng,
             output_dim=self.output_dim, init=self.init,
             forget_bias_init='zero',
             inner_init=self.inner_init)
-
         self.rnn.build(input_shape)
-
-        self.M = theano.shared((.001*np.ones((1,)).astype(floatX)))
+        self.M = theano.shared((.001 * np.ones((1,)).astype(floatX)))
         self.init_h = K.zeros((self.output_dim))
         self.init_wr = self.rnn.init((self.n_slots,))
         self.init_ww = self.rnn.init((self.n_slots,))
@@ -95,7 +94,7 @@ class NeuralTuringMachine(Recurrent):
 
         # get_w  parameters for reading operation
         self.W_k_read = self.rnn.init((self.output_dim, self.m_length))
-        self.b_k_read = self.rnn.init((self.m_length, ))
+        self.b_k_read = self.rnn.init((self.m_length,))
         self.W_c_read = self.rnn.init((self.output_dim, 3))  # 3 = beta, g, gamma see eq. 5, 7, 9
         self.b_c_read = K.zeros((3))
         self.W_s_read = self.rnn.init((self.output_dim, self.shift_range))
@@ -103,7 +102,7 @@ class NeuralTuringMachine(Recurrent):
 
         # get_w  parameters for writing operation
         self.W_k_write = self.rnn.init((self.output_dim, self.m_length))
-        self.b_k_write = self.rnn.init((self.m_length, ))
+        self.b_k_write = self.rnn.init((self.m_length,))
         self.W_c_write = self.rnn.init((self.output_dim, 3))  # 3 = beta, g, gamma see eq. 5, 7, 9
         self.b_c_write = K.zeros((3))
         self.W_s_write = self.rnn.init((self.output_dim, self.shift_range))
@@ -127,11 +126,11 @@ class NeuralTuringMachine(Recurrent):
         self.trainable_weights = self.trainable_weights + [self.init_c, ]
 
     def _read(self, w, M):
-        return (w[:, :, None]*M).sum(axis=1)
+        return (w[:, :, None] * M).sum(axis=1)
 
     def _write(self, w, e, a, M):
-        Mtilda = M * (1 - w[:, :, None]*e[:, None, :])
-        Mout = Mtilda + w[:, :, None]*a[:, None, :]
+        Mtilda = M * (1 - w[:, :, None] * e[:, None, :])
+        Mout = Mtilda + w[:, :, None] * a[:, None, :]
         return Mout
 
     def _get_content_w(self, beta, k, M):
@@ -139,7 +138,7 @@ class NeuralTuringMachine(Recurrent):
         return _softmax(num)
 
     def _get_location_w(self, g, s, C, gamma, wc, w_tm1):
-        wg = g[:, None] * wc + (1-g[:, None])*w_tm1
+        wg = g[:, None] * wc + (1 - g[:, None]) * w_tm1
         Cs = (C[None, :, :, :] * wg[:, None, None, :]).sum(axis=3)
         wtilda = (Cs * s[:, :, None]).sum(axis=1)
         wout = _renorm(wtilda ** gamma[:, None])
@@ -176,7 +175,46 @@ class NeuralTuringMachine(Recurrent):
         else:
             return input_shape[0], self.output_dim
 
+    def call(self, x, mask=None):
 
+        input_shape = self.u
+        print(input_shape)
+        if K._BACKEND == 'tensorflow':
+            if not input_shape[1]:
+                raise Exception('When using TensorFlow, you should define '
+                                'explicitly the number of timesteps of '
+                                'your sequences.\n'
+                                'If your first layer is an Embedding, '
+                                'make sure to pass it an "input_length" '
+                                'argument. Otherwise, make sure '
+                                'the first layer has '
+                                'an "input_shape" or "batch_input_shape" '
+                                'argument, including the time axis. '
+                                'Found input shape at layer ' + self.name +
+                                ': ' + str(input_shape))
+        if self.stateful:
+            initial_states = self.states
+        else:
+            initial_states = self.get_initial_states(x)
+        constants = self.get_constants(x)
+        preprocessed_input = self.preprocess_input(x)
+
+        last_output, outputs, states = K.rnn(self.step, preprocessed_input,
+                                             initial_states,
+                                             go_backwards=self.go_backwards,
+                                             mask=mask,
+                                             constants=constants,
+                                             unroll=self.unroll,
+                                             input_length=input_shape[1])
+        if self.stateful:
+            self.updates = []
+            for i in range(len(states)):
+                self.updates.append((self.states[i], states[i]))
+
+        if self.return_sequences:
+            return outputs
+        else:
+            return last_output
 
     def step(self, x, states):
         M_tm1, wr_tm1, ww_tm1 = states[:3]
